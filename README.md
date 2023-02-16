@@ -1,5 +1,5 @@
 # Voxel Mesher
 An example of how to create meshes for a voxel chunk similar to what may be used in block games (minecrafts)
-Port of JeffM2501's (voxel mesher example)[https://github.com/raylib-extras/examples-cpp/tree/main/voxel_mesher] to C# Raylib-CsLo
+Port of JeffM2501's [voxel mesher example](https://github.com/raylib-extras/examples-cpp/tree/main/voxel_mesher) to C# Raylib-CsLo
 
 Based on Raylib-CsLo
