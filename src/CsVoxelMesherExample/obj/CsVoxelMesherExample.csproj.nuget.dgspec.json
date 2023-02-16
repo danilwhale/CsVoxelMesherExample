@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "restore": {
+    "E:\\desktop\\Projects\\CsVoxelMesherExample\\src\\CsVoxelMesherExample\\CsVoxelMesherExample.csproj": {}
+  },
+  "projects": {
+    "E:\\desktop\\Projects\\CsVoxelMesherExample\\src\\CsVoxelMesherExample\\CsVoxelMesherExample.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "E:\\desktop\\Projects\\CsVoxelMesherExample\\src\\CsVoxelMesherExample\\CsVoxelMesherExample.csproj",
+        "projectName": "CsVoxelMesherExample",
+        "projectPath": "E:\\desktop\\Projects\\CsVoxelMesherExample\\src\\CsVoxelMesherExample\\CsVoxelMesherExample.csproj",
+        "packagesPath": "C:\\Users\\danil\\.nuget\\packages\\",
+        "outputPath": "E:\\desktop\\Projects\\CsVoxelMesherExample\\src\\CsVoxelMesherExample\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\danil\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net6.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net6.0": {
+            "targetAlias": "net6.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net6.0": {
+          "targetAlias": "net6.0",
+          "dependencies": {
+            "Raylib-Cs": {
+              "target": "Package",
+              "version": "[4.2.0.1, )"
+            },
+            "Raylib-CsLo": {
+              "target": "Package",
+              "version": "[4.2.0.5, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.308\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

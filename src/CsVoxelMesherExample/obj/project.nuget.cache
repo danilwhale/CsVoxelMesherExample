@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "zPskZaHkWuu5rvvXO487vAwVKunSgp3cYtz5ZJRA4lhW/TI7lw8ReqtxUMevZyjeYLCNI6EqDHZSWLaCoXgtIg==",
+  "success": true,
+  "projectFilePath": "E:\\desktop\\Projects\\CsVoxelMesherExample\\src\\CsVoxelMesherExample\\CsVoxelMesherExample.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\danil\\.nuget\\packages\\microsoft.toolkit.highperformance\\7.1.2\\microsoft.toolkit.highperformance.7.1.2.nupkg.sha512",
+    "C:\\Users\\danil\\.nuget\\packages\\raylib-cs\\4.2.0.1\\raylib-cs.4.2.0.1.nupkg.sha512",
+    "C:\\Users\\danil\\.nuget\\packages\\raylib-cslo\\4.2.0.5\\raylib-cslo.4.2.0.5.nupkg.sha512",
+    "C:\\Users\\danil\\.nuget\\packages\\system.numerics.vectors\\4.5.0\\system.numerics.vectors.4.5.0.nupkg.sha512"
+  ],
+  "logs": []
+}
