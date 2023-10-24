@@ -3,7 +3,7 @@
 
 An example of how to create meshes for a voxel chunk similar to what may be used in block games (minecrafts)
 
-> Note: i didn't comment anything atm, if i don't forget to do this, i'll do this tomorrow
+> Note: i didn't done anything except rewriting code, maybe in 24 hours i'll do everything else if i don't forget to
 
 # Building
 To build you need .NET ~~6.0~~ 7.0 SDK
