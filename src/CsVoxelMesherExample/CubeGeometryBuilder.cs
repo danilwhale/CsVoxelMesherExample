@@ -1,248 +1,256 @@
-using System.Numerics;
-using System.Runtime.CompilerServices;
-using Raylib_CsLo;
-using static Raylib_CsLo.Raylib;
+namespace CsVoxelMesherExample;
 
-namespace raylibExtras.CsVoxelMesherExample;
-
-/// <summary>
-/// Contains tools to manage chunk rendering using Mesh
-/// </summary>
-public unsafe class CubeGeometryBuilder
+public class CubeGeometryBuilder
 {
-    // setup the builder with the mesh it is going to fill out
-    public CubeGeometryBuilder(ref Mesh mesh)
+    public Mesh Mesh;
+
+    private int _triangleIndex = 0;
+    private int _vertIndex = 0;
+
+    private Vector3 _normal = new Vector3(0, 0, 0);
+    private Color _vertColor = WHITE;
+    private Vector2 _uv = new Vector2(0, 0);
+
+    public CubeGeometryBuilder(Mesh mesh)
     {
-        MeshRef = (Mesh*)Unsafe.AsPointer<Mesh>(ref mesh);
+        Mesh = mesh;
+    }
+    
+    public unsafe void Allocate(int faces)
+    {
+        Mesh.vertexCount = faces * 6;
+        Mesh.triangleCount = faces * 2;
+
+        Mesh.vertices = (float*)MemAlloc((uint)(Mesh.vertexCount * 3 * sizeof(float)));
+        Mesh.normals = (float*)MemAlloc((uint)(Mesh.vertexCount * 3 * sizeof(float)));
+        Mesh.texcoords = (float*)MemAlloc((uint)(Mesh.vertexCount * 2 * sizeof(float)));
+        Mesh.colors = null; // (byte*)MemAlloc((uint)(Mesh.vertexCount * 4 * sizeof(byte))); // uncomment this if you want colored vertices
+
+        Mesh.animNormals = null;
+        Mesh.animVertices = null;
+        Mesh.boneIds = null;
+        Mesh.boneWeights = null;
+        Mesh.tangents = null;
+        Mesh.indices = null;
+        Mesh.texcoords2 = null;
     }
 
-    // indexes for the 6 faces of a cube
-    public const int SouthFace = 0;
-    public const int NorthFace = 1;
-    public const int WestFace = 2;
-    public const int EastFace = 3;
-    public const int UpFace = 4;
-    public const int DownFace = 5;
-
-    // we need to know how many triangles are going to be in the mesh before we start
-    // this way we can allocate the correct buffer sizes for the mesh
-    public void Allocate(int triangles)
+    public void SetNormal(Vector3 normal)
     {
-        // there are 
-        MeshRef->vertexCount = triangles * 6;
-        MeshRef->triangleCount = triangles * 2;
-
-        MeshRef->vertices = (float*)MemAlloc((uint)(sizeof(float) * 3 * MeshRef->vertexCount));
-        MeshRef->normals = (float*)MemAlloc((uint)(sizeof(float) * 3 * MeshRef->vertexCount));
-        MeshRef->texcoords = (float*)MemAlloc((uint)(sizeof(float) * 2 * MeshRef->vertexCount));
-        MeshRef->colors = null;  // static_cast<unsigned char*>(MemAlloc(sizeof(unsigned char) * 4 * MeshRef.vertexCount));
-
-        MeshRef->animNormals = null;
-        MeshRef->animVertices = null;
-        MeshRef->boneIds = null;
-        MeshRef->boneWeights = null;
-        MeshRef->tangents = null;
-        MeshRef->indices = null;
-        MeshRef->texcoords2 = null;
+        _normal = normal;
     }
 
-    public void SetNormal(Vector3 value) { Normal = value; }
-    public void SetNormal(float x, float y, float z) { Normal = new Vector3(x, y, z); }
-    public void SetSetUV(Vector2 value) { UV = value; }
-    public void SetSetUV(float x, float y) { UV = new Vector2(x, y); }
-
-    public void PushVertex(Vector3 vertex, float xOffset = 0, float yOffset = 0, float zOffset = 0)
+    public void SetNormal(float x, float y, float z)
     {
-        int index = TriangleIndex * 12 + VertIndex * 3;
+        _normal = new Vector3(x, y, z);
+    }
 
-        if (MeshRef->colors != null)
+    public void SetUv(Vector2 uv)
+    {
+        _uv = uv;
+    }
+
+    public void SetUv(float x, float y)
+    {
+        _uv = new Vector2(x, y);
+    }
+
+    public unsafe void PushVertex(Vector3 vertex, float x, float y, float z)
+    {
+        // index = tri * (n * 3) + vert * n
+        // n = component count (vector2 = 2, vector3 = 3, etc.)
+        
+        // color index: tri * (4 * 3) + vert * 4
+        int index = _triangleIndex * 12 + _vertIndex * 4;
+
+        if (Mesh.colors != null)
         {
-            MeshRef->colors[index] = VertColor.r;
-            MeshRef->colors[index + 1] = VertColor.g;
-            MeshRef->colors[index + 2] = VertColor.b;
-            MeshRef->colors[index + 3] = VertColor.a;
+            Mesh.colors[index + 0] = _vertColor.r;
+            Mesh.colors[index + 1] = _vertColor.g;
+            Mesh.colors[index + 2] = _vertColor.b;
+            Mesh.colors[index + 3] = _vertColor.a;
         }
 
-        if (MeshRef->texcoords != null)
+        if (Mesh.texcoords != null)
         {
-            index = TriangleIndex * 6 + VertIndex * 2;
-            MeshRef->texcoords[index] = UV.X;
-            MeshRef->texcoords[index + 1] = UV.Y;
+            // texcoords index: tri * (2 * 3) + vert * 2
+            index = _triangleIndex * 6 + _vertIndex * 2;
+            Mesh.texcoords[index + 0] = _uv.X;
+            Mesh.texcoords[index + 1] = _uv.Y;
         }
 
-        if (MeshRef->normals != null)
+        if (Mesh.normals != null)
         {
-            index = TriangleIndex * 9 + VertIndex * 3;
-            MeshRef->normals[index] = Normal.X;
-            MeshRef->normals[index + 1] = Normal.Y;
-            MeshRef->normals[index + 2] = Normal.Z;
+            // normals index: tri * (3 * 3) + vert * 3
+            index = _triangleIndex * 9 + _vertIndex * 3;
+            Mesh.normals[index + 0] = _normal.X;
+            Mesh.normals[index + 1] = _normal.Y;
+            Mesh.normals[index + 2] = _normal.Z;
         }
+        
+        // vertex index: try * (3 * 3) + vert * 3
+        index = _triangleIndex * 9 + _vertIndex * 3;
+        Mesh.vertices[index + 0] = vertex.X + x;
+        Mesh.vertices[index + 1] = vertex.Y + y;
+        Mesh.vertices[index + 2] = vertex.Z + z;
 
-        index = TriangleIndex * 9 + VertIndex * 3;
-        MeshRef->vertices[index] = vertex.X + xOffset;
-        MeshRef->vertices[index + 1] = vertex.Y + yOffset;
-        MeshRef->vertices[index + 2] = vertex.Z + zOffset;
-
-        VertIndex++;
-        if (VertIndex > 2)
+        _vertIndex++;
+        if (_vertIndex > 2)
         {
-            TriangleIndex++;
-            VertIndex = 0;
+            _triangleIndex++;
+            _vertIndex = 0;
         }
     }
 
-    public void AddCube(Vector3 position, bool[] faces, int block)
+    public void AddCube(Vector3 position, bool[] faces, BlockType block)
     {
-        Rectangle uvRect = Program.BlockColors[block];
-        SetSetUV(0, 0);
-        //z-
-        if (faces[NorthFace])
+        Rectangle uv = Program.BlockColors[(int)(block - 1)];
+        
+        SetUv(0, 0);
+        
+        // Z-
+        if (faces[(int)Face.North])
         {
             SetNormal(0, 0, -1);
-            SetSetUV(uvRect.x, uvRect.y);
-            PushVertex(position);
-
-            SetSetUV(uvRect.width, uvRect.height);
+            
+            SetUv(uv.x, uv.y);
+            PushVertex(position, 0, 0, 0);
+            
+            SetUv(uv.width, uv.height);
             PushVertex(position, 1, 1, 0);
-
-            SetSetUV(uvRect.width, uvRect.y);
+            
+            SetUv(uv.width, uv.y);
             PushVertex(position, 1, 0, 0);
-
-            SetSetUV(uvRect.x, uvRect.y);
-            PushVertex(position);
-
-            SetSetUV(uvRect.x, uvRect.height);
+            
+            SetUv(uv.x, uv.y);
+            PushVertex(position, 0, 0, 0);
+            
+            SetUv(uv.x, uv.height);
             PushVertex(position, 0, 1, 0);
-
-            SetSetUV(uvRect.width, uvRect.y);
+            
+            SetUv(uv.width, uv.y);
             PushVertex(position, 1, 1, 0);
         }
-
-        // z+
-        if (faces[SouthFace])
+        
+        // Z+
+        if (faces[(int)Face.South])
         {
             SetNormal(0, 0, 1);
-
-            SetSetUV(uvRect.x, uvRect.y);
+            
+            SetUv(uv.x, uv.y);
             PushVertex(position, 0, 0, 1);
-
-            SetSetUV(uvRect.width, uvRect.y);
+            
+            SetUv(uv.width, uv.y);
             PushVertex(position, 1, 0, 1);
-
-            SetSetUV(uvRect.width, uvRect.height);
+            
+            SetUv(uv.width, uv.height);
             PushVertex(position, 1, 1, 1);
-
-            SetSetUV(uvRect.x, uvRect.y);
+            
+            SetUv(uv.x, uv.y);
             PushVertex(position, 0, 0, 1);
-
-            SetSetUV(uvRect.width, uvRect.height);
+            
+            SetUv(uv.width, uv.height);
             PushVertex(position, 1, 1, 1);
-
-            SetSetUV(uvRect.x, uvRect.height);
+            
+            SetUv(uv.x, uv.height);
             PushVertex(position, 0, 1, 1);
         }
-
-        // x+
-        if (faces[WestFace])
+        
+        // X+
+        if (faces[(int)Face.West])
         {
             SetNormal(1, 0, 0);
-            SetSetUV(uvRect.x, uvRect.height);
+            
+            SetUv(uv.x, uv.height);
             PushVertex(position, 1, 0, 1);
-
-            SetSetUV(uvRect.x, uvRect.y);
+            
+            SetUv(uv.x, uv.y);
             PushVertex(position, 1, 0, 0);
-
-            SetSetUV(uvRect.width, uvRect.y);
+            
+            SetUv(uv.width, uv.y);
             PushVertex(position, 1, 1, 0);
-
-            SetSetUV(uvRect.x, uvRect.height);
+            
+            SetUv(uv.x, uv.height);
             PushVertex(position, 1, 0, 1);
-
-            SetSetUV(uvRect.width, uvRect.y);
+            
+            SetUv(uv.width, uv.y);
             PushVertex(position, 1, 1, 0);
-
-            SetSetUV(uvRect.width, uvRect.height);
+            
+            SetUv(uv.width, uv.height);
             PushVertex(position, 1, 1, 1);
         }
-
-        // x-
-        if (faces[EastFace])
+        
+        // X-
+        if (faces[(int)Face.East])
         {
             SetNormal(-1, 0, 0);
-
-            SetSetUV(uvRect.x, uvRect.height);
+            
+            SetUv(uv.x, uv.height);
             PushVertex(position, 0, 0, 1);
-
-            SetSetUV(uvRect.width, uvRect.y);
+            
+            SetUv(uv.width, uv.y);
             PushVertex(position, 0, 1, 0);
-
-            SetSetUV(uvRect.x, uvRect.y);
+            
+            SetUv(uv.x, uv.y);
             PushVertex(position, 0, 0, 0);
-
-            SetSetUV(uvRect.x, uvRect.height);
+            
+            SetUv(uv.x, uv.height);
             PushVertex(position, 0, 0, 1);
-
-            SetSetUV(uvRect.width, uvRect.height);
+            
+            SetUv(uv.width, uv.height);
             PushVertex(position, 0, 1, 1);
-
-            SetSetUV(uvRect.width, uvRect.y);
+            
+            SetUv(uv.width, uv.y);
             PushVertex(position, 0, 1, 0);
         }
-
-        if (faces[UpFace])
+        
+        // Y+
+        if (faces[(int)Face.Up])
         {
             SetNormal(0, 1, 0);
-
-            SetSetUV(uvRect.x, uvRect.y);
+            
+            SetUv(uv.x, uv.y);
             PushVertex(position, 0, 1, 0);
-
-            SetSetUV(uvRect.width, uvRect.height);
+            
+            SetUv(uv.width, uv.height);
             PushVertex(position, 1, 1, 1);
-
-            SetSetUV(uvRect.width, uvRect.y);
+            
+            SetUv(uv.width, uv.y);
             PushVertex(position, 1, 1, 0);
-
-            SetSetUV(uvRect.x, uvRect.y);
+            
+            SetUv(uv.x, uv.y);
             PushVertex(position, 0, 1, 0);
-
-            SetSetUV(uvRect.x, uvRect.height);
+            
+            SetUv(uv.x, uv.height);
             PushVertex(position, 0, 1, 1);
-
-            SetSetUV(uvRect.width, uvRect.height);
+            
+            SetUv(uv.width, uv.height);
             PushVertex(position, 1, 1, 1);
         }
-
-        SetSetUV(0, 0);
-        if (faces[DownFace])
+        
+        SetUv(0, 0);
+        // Y-
+        if (faces[(int)Face.Down])
         {
             SetNormal(0, -1, 0);
-
-            SetSetUV(uvRect.x, uvRect.y);
+            
+            SetUv(uv.x, uv.y);
             PushVertex(position, 0, 0, 0);
-
-            SetSetUV(uvRect.width, uvRect.y);
-            PushVertex(position, 1, 0, 0);
-
-            SetSetUV(uvRect.width, uvRect.height);
+            
+            SetUv(uv.width, uv.y);
             PushVertex(position, 1, 0, 1);
-
-            SetSetUV(uvRect.x, uvRect.y);
+            
+            SetUv(uv.width, uv.height);
+            PushVertex(position, 1, 0, 1);
+            
+            SetUv(uv.x, uv.y);
             PushVertex(position, 0, 0, 0);
-
-            SetSetUV(uvRect.width, uvRect.height);
+            
+            SetUv(uv.width, uv.height);
             PushVertex(position, 1, 0, 1);
-
-            SetSetUV(uvRect.x, uvRect.height);
+            
+            SetUv(uv.x, uv.height);
             PushVertex(position, 0, 0, 1);
         }
     }
-
-    protected Mesh* MeshRef;
-
-    protected int TriangleIndex = 0;
-    protected int VertIndex = 0;
-
-    protected Vector3 Normal = Vector3.Zero;
-    protected Color VertColor = WHITE;
-    protected Vector2 UV = Vector2.Zero;
-};
+}

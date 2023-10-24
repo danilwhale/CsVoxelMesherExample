@@ -1,205 +1,173 @@
-﻿using System.Numerics;
-using raylibExtras.CsVoxelMesherExample.rLights;
-using Raylib_CsLo;
-using static Raylib_CsLo.Raylib;
-using static Raylib_CsLo.RayMath;
+// basic setup for comfy experience
 
-namespace raylibExtras.CsVoxelMesherExample;
+global using System.Numerics;
+global using ZeroElectric.Vinculum;
+global using static ZeroElectric.Vinculum.Raylib;
+using CsVoxelMesherExample.rLights;
+
+namespace CsVoxelMesherExample;
 
 internal class Program
 {
-    const int ChunkSize = 16;
-    const int ChunkDepth = 16;
+    public const int ChunkSize = 16;
+    public const int ChunkDepth = 16;
 
-    static short[] VoxelChunk = new short[ChunkSize * ChunkSize * ChunkDepth];
+    public static BlockType[] VoxelChunk = new BlockType[ChunkSize * ChunkSize * ChunkDepth];
 
     public static Rectangle[] BlockColors =
     {
-        new Rectangle(0, 0, .25f, 1),
-        new Rectangle(0.25f, 0, 0.5f, 1),
-        new Rectangle(0.5f, 0, 0.75f, 1),
-        new Rectangle(0.75f, 0, 1, 1)
+        new Rectangle(0.0f, 0.0f, 0.25f, 1.0f),
+        new Rectangle(0.25f, 0.0f, 0.5f, 1.0f),
+        new Rectangle(0.5f, 0.0f, 0.75f, 1.0f),
+        new Rectangle(0.75f, 0.0f, 1.0f, 1.0f)
     };
 
-    static int GetIndex(int h, int v, int d) => (d * (ChunkSize * ChunkSize)) + (v * ChunkSize) + h;
-
-    static void Main()
+    public static unsafe void Main(string[] args)
     {
         InitWindow(1200, 800, "voxels!");
-        SetTargetFPS(144);
+        SetWindowState(ConfigFlags.FLAG_VSYNC_HINT);
 
-        RenderTexture tileTexture = LoadRenderTexture(64, 16);
+        RenderTexture tileTexture = LoadRenderTexture(4 * 16, 1 * 16);
         BeginTextureMode(tileTexture);
         ClearBackground(BLANK);
+        
         DrawRectangle(0, 0, 16, 16, DARKBROWN);
         DrawRectangle(16, 0, 16, 16, BROWN);
         DrawRectangle(32, 0, 16, 16, GREEN);
         DrawRectangle(48, 0, 16, 16, GOLD);
+        
         EndTextureMode();
 
-        Camera3D camera = new Camera3D();
-        camera.fovy = 45;
-        camera.up.Y = 1;
-        camera.position.X = 32;
-        camera.position.Z = 32;
-        camera.position.Y = 16;
+        Camera3D camera = new Camera3D(new Vector3(32, 16, 32), Vector3.Zero, Vector3.UnitY, 45,
+            CameraProjection.CAMERA_PERSPECTIVE);
 
-        Shader shader = LoadShader("resources/shaders/base_lighting.vs", "resources/shaders/lighting.fs");
-        unsafe
-        {
-            shader.locs[(int)ShaderLocationIndex.SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
-        }
+        Shader shader = LoadShader("Resources/Shaders/BaseLighting.vert", "Resources/Shaders/Lighting.frag");
+        shader.locs[(int)ShaderLocationIndex.SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
 
         int ambientLoc = GetShaderLocation(shader, "ambient");
-        float[] val = { .1f, .1f, .1f, 1.0f };
-        SetShaderValue(shader, ambientLoc, val, ShaderUniformDataType.SHADER_UNIFORM_VEC4);
+        float[] color = { 0.1f, 0.1f, 0.1f, 1.0f };
+        SetShaderValue(shader, ambientLoc, color, ShaderUniformDataType.SHADER_UNIFORM_VEC4);
 
-        Light[] lights = new Light[4];
-        lights[0] = Light.CreateLight(LightType.Directional, Vector3.Zero, new Vector3(-2, -4, -3), WHITE, shader);
-        lights[1] = Light.CreateLight(LightType.Directional, Vector3.Zero, new Vector3(2, 2, 5), GRAY, shader);
-
+        Light[] lights = new Light[Light.MaxLights];
+        lights[0] = new Light(LightType.Directional, Vector3.Zero, new Vector3(-2, -4, -3), WHITE, shader);
+        lights[1] = new Light(LightType.Directional, Vector3.Zero, new Vector3(2, 2, 5), GRAY, shader);
+        
         BuildChunk();
-
         Mesh mesh = MeshChunk();
 
         Material mat = LoadMaterialDefault();
-        unsafe
-        {
-            mat.maps[0].color = WHITE;
-            mat.maps[0].texture = tileTexture.texture;
-        }
+        mat.maps[(int)MaterialMapIndex.MATERIAL_MAP_ALBEDO].color = WHITE;
+        mat.maps[(int)MaterialMapIndex.MATERIAL_MAP_ALBEDO].texture = tileTexture.texture;
         mat.shader = shader;
 
         while (!WindowShouldClose())
         {
-            camera.position = Vector3.Transform(camera.position, Matrix4x4.CreateRotationY(GetFrameTime() * DEG2RAD * 15));
-
-            Light.UpdateLightValues(shader, ref lights[0]);
-            Light.UpdateLightValues(shader, ref lights[1]);
-
-            unsafe
-            {
-                SetShaderValue(shader, shader.locs[(int)ShaderLocationIndex.SHADER_LOC_VECTOR_VIEW], camera.position, ShaderUniformDataType.SHADER_UNIFORM_VEC3);
-            }
-
+            UpdateCamera(ref camera, CameraMode.CAMERA_ORBITAL);
+            
+            lights[0].UpdateValues(shader);
+            lights[1].UpdateValues(shader);
+            
+            SetShaderValue(shader, shader.locs[(int)ShaderLocationIndex.SHADER_LOC_VECTOR_VIEW], camera.position, ShaderUniformDataType.SHADER_UNIFORM_VEC3);
+                            
             BeginDrawing();
             ClearBackground(SKYBLUE);
-
+            
             BeginMode3D(camera);
-
+            
             DrawGrid(10, 10);
-            DrawSphere(Vector3.Zero, .125f, GRAY);
-            DrawSphere(Vector3.UnitX, .0125f, RED);
-            DrawSphere(Vector3.UnitZ, .0125f, GREEN);
-
-            DrawMesh(mesh, mat, MatrixIdentity());
-
+            DrawSphere(Vector3.Zero, 0.125f, GRAY);
+            DrawSphere(Vector3.UnitX, 0.125f, RED);
+            DrawSphere(Vector3.UnitZ, 0.125f, GREEN);
+            
+            DrawMesh(mesh, mat, Matrix4x4.Transpose(Matrix4x4.CreateTranslation(-ChunkSize / 2f, 0, -ChunkSize / 2f)));
+            
             EndMode3D();
-
+            
             DrawFPS(0, 0);
+            
             EndDrawing();
         }
+        
+        CloseWindow();
     }
 
-    // build a simple random voxel chunk
-    static void BuildChunk()
+    private static int GetIndex(int x, int y, int z)
     {
-        // fill the chunk with layers of blocks
-        for (int d = 0; d < ChunkDepth; d++)
+        return x + ChunkSize * (y + ChunkDepth * z);
+    }
+
+    private static void BuildChunk()
+    {
+        for (int y = 0; y < ChunkDepth; y++)
         {
-            short block = 0;
-
-            if (d > 6)
+            BlockType block = y switch
             {
-                block = 1;
-                if (d > 8)
-                {
-                    block = 2;
-                    if (d > 10)
-                        block = -1;
-                }
-            }
+                > 10 => BlockType.Air,
+                > 8 => BlockType.Grass,
+                > 6 => BlockType.Dirt,
+                _ => BlockType.DarkDirt
+            };
 
-            for (int v = 0; v < ChunkSize; v++)
+            for (int x = 0; x < ChunkSize; x++)
             {
-                for (int h = 0; h < ChunkSize; h++)
+                for (int z = 0; z < ChunkSize; z++)
                 {
-                    int index = GetIndex(h, v, d);
-
-                    VoxelChunk[index] = block;
+                    int i = GetIndex(x, y, z);
+                    VoxelChunk[i] = block;
                 }
             }
         }
 
-        // Remove some chunks 
+        Random random = new Random();
         for (int i = 0; i < 500; i++)
         {
-            int h = GetRandomValue(0, ChunkSize - 1);
-            int v = GetRandomValue(0, ChunkSize - 1);
-            int d = GetRandomValue(0, 10);
+            int x = random.Next(ChunkSize - 1);
+            int y = random.Next(10);
+            int z = random.Next(ChunkSize - 1);
 
-            int index = GetIndex(h, v, d);
-
-            VoxelChunk[index] = -1;
+            int index = GetIndex(x, y, z);
+            VoxelChunk[index] = BlockType.Air;
         }
 
-        // Add some gold
         for (int i = 0; i < 100; i++)
         {
-            int h = GetRandomValue(0, ChunkSize - 1);
-            int v = GetRandomValue(0, ChunkSize - 1);
-            int d = GetRandomValue(0, 10);
+            int x = random.Next(ChunkSize - 1);
+            int y = random.Next(10);
+            int z = random.Next(ChunkSize - 1);
 
-            int index = GetIndex(h, v, d);
-
-            VoxelChunk[index] = 3;
+            int index = GetIndex(x, y, z);
+            VoxelChunk[index] = BlockType.Gold;
         }
     }
 
-    static bool BlockIsSolid(int h, int v, int d)
+    private static bool IsBlockSolid(int x, int y, int z)
     {
-        if (h < 0 || h >= ChunkSize)
-            return false;
+        if (x is < 0 or >= ChunkSize) return false;
+        if (y is < 0 or >= ChunkSize) return false;
+        if (z is < 0 or >= ChunkSize) return false;
 
-        if (v < 0 || v >= ChunkSize)
-            return false;
-
-        if (d < 0 || d >= ChunkDepth)
-            return false;
-
-        return VoxelChunk[GetIndex(h, v, d)] >= 0;
+        int index = GetIndex(x, y, z);
+        return VoxelChunk[index] > BlockType.Air;
     }
 
-    //check all the adjacent blocks to see if they are open, if they are, we need a face for that side of the block.
-    static int GetChunkFaceCount()
+    private static int GetChunkFaceCount()
     {
         int count = 0;
-        for (int d = 0; d < ChunkDepth; d++)
+
+        for (int x = 0; x < ChunkSize; x++)
         {
-            for (int v = 0; v < ChunkSize; v++)
+            for (int y = 0; y < ChunkDepth; y++)
             {
-                for (int h = 0; h < ChunkSize; h++)
+                for (int z = 0; z < ChunkSize; z++)
                 {
-                    if (!BlockIsSolid(h, v, d))
-                        continue;
+                    if (!IsBlockSolid(x, y, z)) continue;
 
-                    if (!BlockIsSolid(h + 1, v, d))
-                        count++;
-
-                    if (!BlockIsSolid(h - 1, v, d))
-                        count++;
-
-                    if (!BlockIsSolid(h, v + 1, d))
-                        count++;
-
-                    if (!BlockIsSolid(h, v - 1, d))
-                        count++;
-
-                    if (!BlockIsSolid(h, v, d + 1))
-                        count++;
-
-                    if (!BlockIsSolid(h, v, d - 1))
-                        count++;
+                    if (!IsBlockSolid(x + 1, y, z)) count++;
+                    if (!IsBlockSolid(x - 1, y, z)) count++;
+                    if (!IsBlockSolid(x, y + 1, z)) count++;
+                    if (!IsBlockSolid(x, y - 1, z)) count++;
+                    if (!IsBlockSolid(x, y, z + 1)) count++;
+                    if (!IsBlockSolid(x, y, z - 1)) count++;
                 }
             }
         }
@@ -207,52 +175,39 @@ internal class Program
         return count;
     }
 
-    static Mesh MeshChunk()
+    private static unsafe Mesh MeshChunk()
     {
-        Mesh mesh = new Mesh();
-        CubeGeometryBuilder builder = new CubeGeometryBuilder(ref mesh);
-
-        // figure out how many faces will be in this chunk and allocate a mesh that can store that many
+        CubeGeometryBuilder builder = new CubeGeometryBuilder(new Mesh());
+        
         builder.Allocate(GetChunkFaceCount());
 
-        for (int d = 0; d < ChunkDepth; d++)
+        int count = 0;
+        
+        for (int x = 0; x < ChunkSize; x++)
         {
-            for (int v = 0; v < ChunkSize; v++)
+            for (int y = 0; y < ChunkDepth; y++)
             {
-                for (int h = 0; h < ChunkSize; h++)
+                for (int z = 0; z < ChunkSize; z++)
                 {
-                    if (!BlockIsSolid(h, v, d))
-                        continue;
+                    if (!IsBlockSolid(x, y, z)) continue;
 
-                    // build up the list of faces that this block needs
                     bool[] faces = { false, false, false, false, false, false };
 
-                    if (!BlockIsSolid(h - 1, v, d))
-                        faces[CubeGeometryBuilder.EastFace] = true;
-
-                    if (!BlockIsSolid(h + 1, v, d))
-                        faces[CubeGeometryBuilder.WestFace] = true;
-
-                    if (!BlockIsSolid(h, v - 1, d))
-                        faces[CubeGeometryBuilder.NorthFace] = true;
-
-                    if (!BlockIsSolid(h, v + 1, d))
-                        faces[CubeGeometryBuilder.SouthFace] = true;
-
-                    if (!BlockIsSolid(h, v, d + 1))
-                        faces[CubeGeometryBuilder.UpFace] = true;
-
-                    if (!BlockIsSolid(h, v, d - 1))
-                        faces[CubeGeometryBuilder.DownFace] = true;
-
-                    // build the faces that hit open air for this voxel block
-                    builder.AddCube(new Vector3((float)h, (float)d, (float)v), faces, (int)VoxelChunk[GetIndex(h, v, d)]);
+                    if (!IsBlockSolid(x - 1, y, z)) faces[(int)Face.East] = true;
+                    if (!IsBlockSolid(x + 1, y, z)) faces[(int)Face.West] = true;
+                    if (!IsBlockSolid(x, y - 1, z)) faces[(int)Face.Down] = true;
+                    if (!IsBlockSolid(x, y + 1, z)) faces[(int)Face.Up] = true;
+                    if (!IsBlockSolid(x, y, z - 1)) faces[(int)Face.North] = true;
+                    if (!IsBlockSolid(x, y, z + 1)) faces[(int)Face.South] = true;
+                    
+                    builder.AddCube(new Vector3(x, y, z), faces, VoxelChunk[GetIndex(x, y, z)]);
                 }
             }
         }
+        
+        fixed (Mesh* m = &builder.Mesh)
+            UploadMesh(m, false);
 
-        unsafe { UploadMesh(&mesh, false); }
-
-        return mesh;
+        return builder.Mesh;
     }
 }
